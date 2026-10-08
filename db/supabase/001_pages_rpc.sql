@@ -36,6 +36,21 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   FROM programacion p JOIN recetas r ON r.nombre=p.nombre LEFT JOIN detalle_receta d USING(id_receta) LEFT JOIN ingredientes i USING(id_ingrediente) LEFT JOIN (SELECT id_ingrediente,SUM(cantidad_disponible) disponible FROM inventario GROUP BY id_ingrediente) inv USING(id_ingrediente) GROUP BY r.id_receta;
 $$;
 
+CREATE OR REPLACE FUNCTION api_historial_compras() RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT COALESCE(jsonb_agg(to_jsonb(data) ORDER BY data.fecha_compra DESC),'[]'::jsonb) FROM (
+    SELECT fecha_compra,COUNT(*) cantidad_items,SUM(precio_pagado_total) total,
+    jsonb_agg(jsonb_build_object('nombre',nombre,'lugar_compra',lugar_compra,'precio_pagado_total',precio_pagado_total,'cantidad_comprada',cantidad_comprada,'costo_unitario',costo_unitario_calculado,'unidad_medida',unidad_medida) ORDER BY nombre) compras
+    FROM (SELECT h.*,i.nombre,i.unidad_medida FROM historial_compras h JOIN ingredientes i USING(id_ingrediente)) c GROUP BY fecha_compra ORDER BY fecha_compra DESC LIMIT 50
+  ) data;
+$$;
+
+CREATE OR REPLACE FUNCTION api_analitica_precios(p_id_ingrediente integer DEFAULT NULL) RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT jsonb_build_object('ingredientes',(SELECT COALESCE(jsonb_agg(jsonb_build_object('id_ingrediente',id_ingrediente,'nombre',nombre) ORDER BY nombre),'[]'::jsonb) FROM ingredientes),
+    'puntos',(SELECT COALESCE(jsonb_agg(to_jsonb(x) ORDER BY x.fecha_compra),'[]'::jsonb) FROM (SELECT fecha_compra,costo_unitario_calculado,precio_pagado_total,cantidad_comprada,costo_unitario_calculado-LAG(costo_unitario_calculado) OVER(ORDER BY fecha_compra,id_compra) variacion FROM historial_compras WHERE id_ingrediente=p_id_ingrediente) x));
+$$;
+
 CREATE OR REPLACE FUNCTION api_confirmar_compras(p_compras jsonb, p_fecha_hora timestamptz DEFAULT now()) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE c jsonb; ingrediente record; previo numeric; nuevo record; ubic text; maduracion text; respuesta jsonb := '[]'::jsonb;
@@ -77,4 +92,4 @@ BEGIN
   RETURN jsonb_build_object('message','Consumo registrado e inventario descontado.');
 END; $$;
 
-GRANT EXECUTE ON FUNCTION api_capturador_ingredientes(), api_dashboard_inventario(), api_menu_diario(text), api_confirmar_compras(jsonb,timestamptz), api_registrar_consumo(int,numeric,timestamptz) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION api_capturador_ingredientes(), api_dashboard_inventario(), api_menu_diario(text), api_historial_compras(), api_analitica_precios(integer), api_confirmar_compras(jsonb,timestamptz), api_registrar_consumo(int,numeric,timestamptz) TO anon, authenticated;

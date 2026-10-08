@@ -40,6 +40,26 @@ app.post('/api/planificador', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+app.post('/api/historial', async (_req, res, next) => {
+  try {
+    const { rows } = await pool.query(`SELECT fecha_compra,COUNT(*) cantidad_items,SUM(precio_pagado_total) total,
+      json_agg(json_build_object('nombre',nombre,'lugar_compra',lugar_compra,'precio_pagado_total',precio_pagado_total,'cantidad_comprada',cantidad_comprada,'costo_unitario',costo_unitario_calculado,'unidad_medida',unidad_medida) ORDER BY nombre) compras
+      FROM (SELECT h.*,i.nombre,i.unidad_medida FROM historial_compras h JOIN ingredientes i USING(id_ingrediente)) data
+      GROUP BY fecha_compra ORDER BY fecha_compra DESC LIMIT 50`);
+    res.json(rows);
+  } catch (error) { next(error); }
+});
+
+app.post('/api/analitica', async (req, res, next) => {
+  const id = Number(req.body?.id_ingrediente) || null;
+  try {
+    const ingredients = await pool.query('SELECT id_ingrediente,nombre FROM ingredientes ORDER BY nombre');
+    const points = id ? await pool.query(`SELECT fecha_compra,costo_unitario_calculado,precio_pagado_total,cantidad_comprada,
+      costo_unitario_calculado-LAG(costo_unitario_calculado) OVER(ORDER BY fecha_compra,id_compra) variacion FROM historial_compras WHERE id_ingrediente=$1 ORDER BY fecha_compra,id_compra`, [id]) : { rows: [] };
+    res.json({ ingredientes: ingredients.rows, puntos: points.rows });
+  } catch (error) { next(error); }
+});
+
 app.post('/api/compras/confirmar', async (req, res, next) => {
   const { compras, fecha_hora } = req.body ?? {};
   if (!Array.isArray(compras) || compras.length === 0) return res.status(400).json({ error: 'Incluya al menos una compra.' });
