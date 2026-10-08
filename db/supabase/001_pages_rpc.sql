@@ -38,10 +38,13 @@ $$;
 
 CREATE OR REPLACE FUNCTION api_historial_compras() RETURNS jsonb
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  WITH compras AS (SELECT h.*,i.nombre,i.unidad_medida,i.presentacion_compra,LAG(h.precio_pagado_total) OVER(PARTITION BY h.id_ingrediente ORDER BY h.fecha_compra,h.id_compra) precio_anterior FROM historial_compras h JOIN ingredientes i USING(id_ingrediente)),
+  sesiones AS (SELECT fecha_compra,COUNT(*) cantidad_items,SUM(precio_pagado_total) total FROM compras GROUP BY fecha_compra),
+  sesiones_variacion AS (SELECT *,total-LAG(total) OVER(ORDER BY fecha_compra) variacion_total FROM sesiones)
   SELECT COALESCE(jsonb_agg(to_jsonb(data) ORDER BY data.fecha_compra DESC),'[]'::jsonb) FROM (
-    SELECT fecha_compra,COUNT(*) cantidad_items,SUM(precio_pagado_total) total,
-    jsonb_agg(jsonb_build_object('nombre',nombre,'lugar_compra',lugar_compra,'precio_pagado_total',precio_pagado_total,'cantidad_comprada',cantidad_comprada,'costo_unitario',costo_unitario_calculado,'unidad_medida',unidad_medida) ORDER BY nombre) compras
-    FROM (SELECT h.*,i.nombre,i.unidad_medida FROM historial_compras h JOIN ingredientes i USING(id_ingrediente)) c GROUP BY fecha_compra ORDER BY fecha_compra DESC LIMIT 50
+    SELECT s.fecha_compra,s.cantidad_items,s.total,s.variacion_total,CASE WHEN LAG(s.total) OVER(ORDER BY s.fecha_compra) IS NULL THEN NULL ELSE ROUND((s.variacion_total/LAG(s.total) OVER(ORDER BY s.fecha_compra))*100,2) END variacion_porcentaje,
+    jsonb_agg(jsonb_build_object('nombre',c.nombre,'lugar_compra',c.lugar_compra,'presentacion',COALESCE(c.presentacion_marca,c.presentacion_compra),'precio_pagado_total',c.precio_pagado_total,'precio_anterior',c.precio_anterior,'cantidad_comprada',c.cantidad_comprada,'costo_unitario',c.costo_unitario_calculado,'unidad_medida',c.unidad_medida) ORDER BY c.nombre) compras
+    FROM sesiones_variacion s JOIN compras c USING(fecha_compra) GROUP BY s.fecha_compra,s.cantidad_items,s.total,s.variacion_total ORDER BY s.fecha_compra DESC LIMIT 50
   ) data;
 $$;
 
