@@ -5,7 +5,9 @@ CREATE TABLE ingredientes (
   unidad_medida VARCHAR(20) NOT NULL CHECK (unidad_medida IN ('GRAMOS','MILILITROS','UNIDADES')),
   stock_minimo_alerta DECIMAL(10,2) NOT NULL CHECK (stock_minimo_alerta >= 0),
   presentacion_compra VARCHAR(100) NOT NULL,
-  dias_ingesta_abreviado VARCHAR(50) NOT NULL
+  dias_ingesta_abreviado VARCHAR(50) NOT NULL,
+  lugar_compra_predeterminado VARCHAR(100) NOT NULL DEFAULT 'Bloque 11 - Mayorista',
+  cantidad_compra_estandar DECIMAL(10,2) NOT NULL DEFAULT 1 CHECK (cantidad_compra_estandar > 0)
 );
 
 CREATE TABLE inventario (
@@ -50,20 +52,20 @@ CREATE TABLE registro_consumo (
   porciones_consumidas DECIMAL(4,2) NOT NULL DEFAULT 1 CHECK (porciones_consumidas > 0)
 );
 
-INSERT INTO ingredientes (nombre,categoria,unidad_medida,stock_minimo_alerta,presentacion_compra,dias_ingesta_abreviado) VALUES
-('Huevos','PROTEINA','UNIDADES',12,'Cubeta x 30','Diario'),
-('Avena','SECOS','GRAMOS',500,'Bolsa x 1000 g','Diario'),
-('Leche','LACTEOS','MILILITROS',1000,'Bolsa x 1000 ml','Diario'),
-('Banano','FRESCOR','GRAMOS',500,'Manojo','Vie, Lun'),
-('Aguacate','FRESCOR','GRAMOS',300,'Unidad','Vie, Lun'),
-('Pollo','PROTEINA','GRAMOS',1000,'Bandeja x 1000 g','Mar, Jue'),
-('Carne molida','PROTEINA','GRAMOS',500,'Bandeja x 500 g','Sab, Dom'),
-('Arroz','SECOS','GRAMOS',1000,'Bolsa x 2500 g','Diario'),
-('Papa','FRESCOR','GRAMOS',1000,'Bulto','Mar, Jue'),
-('Yogur griego','LACTEOS','GRAMOS',500,'Tarro x 1000 g','Diario'),
-('Proteína whey','SUPLEMENTOS','GRAMOS',150,'Tarro x 900 g','Diario'),
-('Creatina','SUPLEMENTOS','GRAMOS',50,'Tarro x 300 g','Diario'),
-('Colágeno hidrolizado','SUPLEMENTOS','GRAMOS',100,'Bolsa x 300 g','Diario');
+INSERT INTO ingredientes (nombre,categoria,unidad_medida,stock_minimo_alerta,presentacion_compra,dias_ingesta_abreviado,lugar_compra_predeterminado,cantidad_compra_estandar) VALUES
+('Huevos','PROTEINA','UNIDADES',12,'Cubeta x 30','Diario','Bloque 11 - Mayorista',30),
+('Avena','SECOS','GRAMOS',500,'Bolsa x 1000 g','Diario','Graneros',1000),
+('Leche','LACTEOS','MILILITROS',1000,'Bolsa x 1000 ml','Diario','Bloque 11 - Mayorista',1000),
+('Banano','FRESCOR','GRAMOS',500,'Manojo','Vie, Lun','Bloque 11 - Mayorista',1000),
+('Aguacate','FRESCOR','GRAMOS',300,'Unidad','Vie, Lun','Bloque 11 - Mayorista',5),
+('Pollo','PROTEINA','GRAMOS',1000,'Bandeja x 1000 g','Mar, Jue','Bloque 21 - Mayorista',1000),
+('Carne molida','PROTEINA','GRAMOS',500,'Bandeja x 500 g','Sab, Dom','Bloque 21 - Mayorista',500),
+('Arroz','SECOS','GRAMOS',1000,'Bolsa x 2500 g','Diario','Graneros',2500),
+('Papa','FRESCOR','GRAMOS',1000,'Bulto','Mar, Jue','Bloque 11 - Mayorista',5000),
+('Yogur griego','LACTEOS','GRAMOS',500,'Tarro x 1000 g','Diario','Graneros',1000),
+('Proteína whey','SUPLEMENTOS','GRAMOS',150,'Tarro x 900 g','Diario','Graneros',900),
+('Creatina','SUPLEMENTOS','GRAMOS',50,'Tarro x 300 g','Diario','Graneros',300),
+('Colágeno hidrolizado','SUPLEMENTOS','GRAMOS',100,'Bolsa x 300 g','Diario','Graneros',300);
 
 INSERT INTO inventario (id_ingrediente, cantidad_disponible, ubicacion, estado_maduracion)
 SELECT id_ingrediente, 0, CASE WHEN categoria='FRESCOR' OR categoria='LACTEOS' THEN 'NEVERA' WHEN nombre='Pollo' OR nombre='Carne molida' THEN 'CONGELADOR' ELSE 'ALACENA' END, 'N_A' FROM ingredientes;

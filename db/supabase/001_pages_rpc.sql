@@ -10,9 +10,10 @@ ALTER TABLE registro_consumo ENABLE ROW LEVEL SECURITY;
 CREATE OR REPLACE FUNCTION api_capturador_ingredientes() RETURNS jsonb
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   SELECT COALESCE(jsonb_agg(to_jsonb(data) ORDER BY data.categoria, data.nombre), '[]'::jsonb)
-  FROM (SELECT i.id_ingrediente,i.nombre,i.categoria,i.unidad_medida,i.presentacion_compra,i.dias_ingesta_abreviado,i.stock_minimo_alerta,
-        inv.cantidad_disponible,inv.ubicacion,inv.estado_maduracion
-        FROM ingredientes i JOIN inventario inv USING(id_ingrediente)) data;
+  FROM (SELECT i.id_ingrediente,i.nombre,i.categoria,i.unidad_medida,i.presentacion_compra,i.dias_ingesta_abreviado,i.stock_minimo_alerta,i.lugar_compra_predeterminado,i.cantidad_compra_estandar,
+        inv.cantidad_disponible,inv.ubicacion,inv.estado_maduracion,ultimo.costo_unitario_calculado ultimo_precio_unitario
+        FROM ingredientes i JOIN inventario inv USING(id_ingrediente)
+        LEFT JOIN LATERAL (SELECT costo_unitario_calculado FROM historial_compras WHERE id_ingrediente=i.id_ingrediente ORDER BY fecha_compra DESC,id_compra DESC LIMIT 1) ultimo ON true) data;
 $$;
 
 CREATE OR REPLACE FUNCTION api_dashboard_inventario() RETURNS jsonb

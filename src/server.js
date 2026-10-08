@@ -12,8 +12,9 @@ app.get('/health', async (_req, res) => {
 
 app.get('/api/ingredientes/capturador', async (_req, res, next) => {
   try {
-    const { rows } = await pool.query(`SELECT i.id_ingrediente, i.nombre, i.categoria, i.unidad_medida, i.presentacion_compra, i.dias_ingesta_abreviado, i.stock_minimo_alerta, inv.cantidad_disponible, inv.ubicacion, inv.estado_maduracion
-      FROM ingredientes i JOIN inventario inv USING (id_ingrediente) ORDER BY i.categoria, i.nombre`);
+    const { rows } = await pool.query(`SELECT i.id_ingrediente, i.nombre, i.categoria, i.unidad_medida, i.presentacion_compra, i.dias_ingesta_abreviado, i.stock_minimo_alerta, i.lugar_compra_predeterminado, i.cantidad_compra_estandar, inv.cantidad_disponible, inv.ubicacion, inv.estado_maduracion, ultimo.costo_unitario_calculado ultimo_precio_unitario
+      FROM ingredientes i JOIN inventario inv USING (id_ingrediente)
+      LEFT JOIN LATERAL (SELECT costo_unitario_calculado FROM historial_compras WHERE id_ingrediente=i.id_ingrediente ORDER BY fecha_compra DESC,id_compra DESC LIMIT 1) ultimo ON true ORDER BY i.categoria, i.nombre`);
     res.json(rows);
   } catch (error) { next(error); }
 });
