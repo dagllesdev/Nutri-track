@@ -17,6 +17,7 @@ CREATE TABLE inventario (
   cantidad_disponible DECIMAL(10,2) NOT NULL DEFAULT 0 CHECK (cantidad_disponible >= 0),
   ubicacion VARCHAR(50) NOT NULL CHECK (ubicacion IN ('NEVERA','CONGELADOR','ALACENA')),
   estado_maduracion VARCHAR(50) NOT NULL DEFAULT 'N_A' CHECK (estado_maduracion IN ('VERDE','PINTON','MADURO','CONGELADO','N_A')),
+  estado_stock VARCHAR(20) NOT NULL DEFAULT 'OK' CHECK (estado_stock IN ('OK','REABASTECER')),
   fecha_ultima_actualizacion TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (id_ingrediente, ubicacion, estado_maduracion)
 );

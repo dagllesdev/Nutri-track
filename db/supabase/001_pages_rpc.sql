@@ -24,6 +24,18 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
     FROM ingredientes i JOIN inventario inv USING(id_ingrediente) GROUP BY i.id_ingrediente) data;
 $$;
 
+CREATE OR REPLACE FUNCTION api_menu_diario(p_dia text) RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  WITH programacion AS (SELECT CASE p_dia
+    WHEN 'Lunes' THEN 'Sándwich Potenciado (Vie, Lun)' WHEN 'Martes' THEN 'Shake de Alta Densidad (Mar, Jue)'
+    WHEN 'Miércoles' THEN 'Tazón de Yogur & Granola (Dom, Mier)' WHEN 'Jueves' THEN 'Shake de Alta Densidad (Mar, Jue)'
+    WHEN 'Viernes' THEN 'Sándwich Potenciado (Vie, Lun)' WHEN 'Sábado' THEN 'Arepa Tradicional Proteica (Sab)'
+    WHEN 'Domingo' THEN 'Tazón de Yogur & Granola (Dom, Mier)' END nombre)
+  SELECT jsonb_build_object('dia',p_dia,'id_receta',r.id_receta,'nombre',r.nombre,'calorias_estimadas',r.calorias_estimadas,
+    'ingredientes',COALESCE(jsonb_agg(jsonb_build_object('nombre',i.nombre,'cantidad',d.cantidad_requerida,'unidad_medida',i.unidad_medida) ORDER BY i.nombre) FILTER(WHERE i.id_ingrediente IS NOT NULL),'[]'::jsonb))
+  FROM programacion p JOIN recetas r ON r.nombre=p.nombre LEFT JOIN detalle_receta d USING(id_receta) LEFT JOIN ingredientes i USING(id_ingrediente) GROUP BY r.id_receta;
+$$;
+
 CREATE OR REPLACE FUNCTION api_confirmar_compras(p_compras jsonb, p_fecha_hora timestamptz DEFAULT now()) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE c jsonb; ingrediente record; previo numeric; nuevo record; ubic text; maduracion text; respuesta jsonb := '[]'::jsonb;
@@ -59,7 +71,10 @@ BEGIN
     IF restante>0 THEN RAISE EXCEPTION 'Stock insuficiente para registrar el consumo.' USING ERRCODE='22023'; END IF;
   END LOOP;
   INSERT INTO registro_consumo(id_receta,fecha_hora,porciones_consumidas) VALUES(p_id_receta,COALESCE(p_fecha_hora,now()),p_porciones);
+  UPDATE inventario inv SET estado_stock=CASE WHEN resumen.cantidad<=i.stock_minimo_alerta THEN 'REABASTECER' ELSE 'OK' END
+    FROM ingredientes i JOIN (SELECT id_ingrediente,SUM(cantidad_disponible) cantidad FROM inventario GROUP BY id_ingrediente) resumen ON resumen.id_ingrediente=i.id_ingrediente
+    WHERE inv.id_ingrediente=i.id_ingrediente;
   RETURN jsonb_build_object('message','Consumo registrado e inventario descontado.');
 END; $$;
 
-GRANT EXECUTE ON FUNCTION api_capturador_ingredientes(), api_dashboard_inventario(), api_confirmar_compras(jsonb,timestamptz), api_registrar_consumo(int,numeric,timestamptz) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION api_capturador_ingredientes(), api_dashboard_inventario(), api_menu_diario(text), api_confirmar_compras(jsonb,timestamptz), api_registrar_consumo(int,numeric,timestamptz) TO anon, authenticated;

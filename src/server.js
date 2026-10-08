@@ -28,6 +28,18 @@ app.get('/api/dashboard', async (_req, res, next) => {
   } catch (error) { next(error); }
 });
 
+app.post('/api/planificador', async (req, res, next) => {
+  const dia = String(req.body?.dia || '').trim();
+  const nombres = { Lunes: 'Sándwich Potenciado (Vie, Lun)', Martes: 'Shake de Alta Densidad (Mar, Jue)', Miércoles: 'Tazón de Yogur & Granola (Dom, Mier)', Jueves: 'Shake de Alta Densidad (Mar, Jue)', Viernes: 'Sándwich Potenciado (Vie, Lun)', Sábado: 'Arepa Tradicional Proteica (Sab)', Domingo: 'Tazón de Yogur & Granola (Dom, Mier)' };
+  if (!nombres[dia]) return res.status(400).json({ error: 'Día inválido.' });
+  try {
+    const { rows } = await pool.query(`SELECT r.id_receta,r.nombre,r.calorias_estimadas,COALESCE(json_agg(json_build_object('nombre',i.nombre,'cantidad',d.cantidad_requerida,'unidad_medida',i.unidad_medida) ORDER BY i.nombre) FILTER (WHERE i.id_ingrediente IS NOT NULL),'[]') ingredientes
+      FROM recetas r LEFT JOIN detalle_receta d USING(id_receta) LEFT JOIN ingredientes i USING(id_ingrediente) WHERE r.nombre=$1 GROUP BY r.id_receta`, [nombres[dia]]);
+    if (!rows.length) return res.status(404).json({ error: 'No hay receta programada para este día.' });
+    res.json({ dia, ...rows[0] });
+  } catch (error) { next(error); }
+});
+
 app.post('/api/compras/confirmar', async (req, res, next) => {
   const { compras, fecha_hora } = req.body ?? {};
   if (!Array.isArray(compras) || compras.length === 0) return res.status(400).json({ error: 'Incluya al menos una compra.' });
@@ -74,8 +86,13 @@ app.post('/api/consumo/registrar', async (req, res, next) => {
         if (remaining > 0) throw Object.assign(new Error('Stock insuficiente para registrar el consumo.'), { status: 409 });
       }
       await client.query('INSERT INTO registro_consumo(id_receta,fecha_hora,porciones_consumidas) VALUES($1,COALESCE($2::timestamptz,NOW()),$3)', [id_receta, fecha_hora || null, porciones_consumidas]);
+      await client.query(`UPDATE inventario inv SET estado_stock=CASE WHEN resumen.cantidad<=i.stock_minimo_alerta THEN 'REABASTECER' ELSE 'OK' END
+        FROM ingredientes i JOIN (SELECT id_ingrediente,SUM(cantidad_disponible) cantidad FROM inventario GROUP BY id_ingrediente) resumen ON resumen.id_ingrediente=i.id_ingrediente
+        WHERE inv.id_ingrediente=i.id_ingrediente`);
     });
-    res.status(201).json({ message: 'Consumo registrado e inventario descontado.' });
+    const { rows } = await pool.query(`SELECT i.nombre,CASE WHEN SUM(inv.cantidad_disponible)<=i.stock_minimo_alerta THEN 'REABASTECER' ELSE 'OK' END estado
+      FROM ingredientes i JOIN inventario inv USING(id_ingrediente) GROUP BY i.id_ingrediente ORDER BY i.nombre`);
+    res.status(201).json({ message: 'Desayuno registrado y stock descontado con éxito.', inventario: rows });
   } catch (error) { next(error); }
 });
 app.use((error, _req, res, _next) => { console.error(error); res.status(error.status || 500).json({ error: error.status ? error.message : 'Error interno del servidor.' }); });
