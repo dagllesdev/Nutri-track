@@ -7,7 +7,8 @@ CREATE TABLE ingredientes (
   presentacion_compra VARCHAR(100) NOT NULL,
   dias_ingesta_abreviado VARCHAR(50) NOT NULL,
   lugar_compra_predeterminado VARCHAR(100) NOT NULL DEFAULT 'Bloque 11 - Mayorista',
-  cantidad_compra_estandar DECIMAL(10,2) NOT NULL DEFAULT 1 CHECK (cantidad_compra_estandar > 0)
+  cantidad_compra_estandar DECIMAL(10,2) NOT NULL DEFAULT 1 CHECK (cantidad_compra_estandar > 0),
+  stock_objetivo_full DECIMAL(10,2) NOT NULL DEFAULT 1 CHECK (stock_objetivo_full >= 0)
 );
 
 CREATE TABLE inventario (
