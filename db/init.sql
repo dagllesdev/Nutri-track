@@ -2,7 +2,7 @@ CREATE TABLE ingredientes (
   id_ingrediente SERIAL PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL UNIQUE,
   categoria VARCHAR(50) NOT NULL CHECK (categoria IN ('FRESCOR','LACTEOS','PROTEINA','SECOS','SUPLEMENTOS')),
-  unidad_medida VARCHAR(20) NOT NULL CHECK (unidad_medida IN ('GRAMOS','MILILITROS','UNIDADES')),
+  unidad_medida VARCHAR(20) NOT NULL CHECK (unidad_medida IN ('GRAMOS','MILILITROS','UNIDADES','CAPSULAS')),
   stock_minimo_alerta DECIMAL(10,2) NOT NULL CHECK (stock_minimo_alerta >= 0),
   presentacion_compra VARCHAR(100) NOT NULL,
   dias_ingesta_abreviado VARCHAR(50) NOT NULL,

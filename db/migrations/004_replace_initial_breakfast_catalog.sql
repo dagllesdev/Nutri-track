@@ -24,6 +24,7 @@ INSERT INTO ingredientes (nombre,categoria,unidad_medida,stock_minimo_alerta,pre
   ('Frutos Secos / Maní','SECOS','GRAMOS',50.00,'Bolsa x 250g','Dom, Mier','Graneros',250),
   ('Miel de Abejas','SECOS','GRAMOS',30.00,'Frasco x 250g','Dom, Mier','Graneros',250),
   ('Leche Entera','LACTEOS','MILILITROS',300.00,'Bolsón x 1000ml','Mar, Jue','Bloque 11 - Mayorista',1000);
+  -- Los suplementos se agregan en la migración 008 para instalaciones existentes.
 
 INSERT INTO inventario (id_ingrediente,cantidad_disponible,ubicacion,estado_maduracion)
 SELECT id_ingrediente,0.00,CASE WHEN categoria IN ('FRESCOR','LACTEOS') THEN 'NEVERA' ELSE 'ALACENA' END,'N_A' FROM ingredientes;

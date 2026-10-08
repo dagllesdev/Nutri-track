@@ -32,7 +32,8 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
     WHEN 'Viernes' THEN 'Sándwich Potenciado (Vie, Lun)' WHEN 'Sábado' THEN 'Arepa Tradicional Proteica (Sab)'
     WHEN 'Domingo' THEN 'Tazón de Yogur & Granola (Dom, Mier)' END nombre)
   SELECT jsonb_build_object('dia',p_dia,'id_receta',r.id_receta,'nombre',r.nombre,'calorias_estimadas',r.calorias_estimadas,
-    'ingredientes',COALESCE(jsonb_agg(jsonb_build_object('nombre',i.nombre,'cantidad',d.cantidad_requerida,'unidad_medida',i.unidad_medida,'dias_ingesta_abreviado',i.dias_ingesta_abreviado,'categoria',i.categoria,'stock_disponible',COALESCE(inv.disponible,0),'stock_despues',GREATEST(COALESCE(inv.disponible,0)-d.cantidad_requerida,0),'faltante',GREATEST(d.cantidad_requerida-COALESCE(inv.disponible,0),0)) ORDER BY i.nombre) FILTER(WHERE i.id_ingrediente IS NOT NULL),'[]'::jsonb))
+    'ingredientes',COALESCE(jsonb_agg(jsonb_build_object('nombre',i.nombre,'cantidad',d.cantidad_requerida,'unidad_medida',i.unidad_medida,'dias_ingesta_abreviado',i.dias_ingesta_abreviado,'categoria',i.categoria,'stock_disponible',COALESCE(inv.disponible,0),'stock_despues',GREATEST(COALESCE(inv.disponible,0)-d.cantidad_requerida,0),'faltante',GREATEST(d.cantidad_requerida-COALESCE(inv.disponible,0),0)) ORDER BY i.nombre) FILTER(WHERE i.id_ingrediente IS NOT NULL),'[]'::jsonb),
+    'suplementos',(SELECT COALESCE(jsonb_agg(jsonb_build_object('id_ingrediente',s.id_ingrediente,'nombre',s.nombre,'unidad_medida',s.unidad_medida,'stock_disponible',COALESCE(si.disponible,0)) ORDER BY s.nombre),'[]'::jsonb) FROM ingredientes s LEFT JOIN (SELECT id_ingrediente,SUM(cantidad_disponible) disponible FROM inventario GROUP BY id_ingrediente) si USING(id_ingrediente) WHERE s.categoria='SUPLEMENTOS'))
   FROM programacion p JOIN recetas r ON r.nombre=p.nombre LEFT JOIN detalle_receta d USING(id_receta) LEFT JOIN ingredientes i USING(id_ingrediente) LEFT JOIN (SELECT id_ingrediente,SUM(cantidad_disponible) disponible FROM inventario GROUP BY id_ingrediente) inv USING(id_ingrediente) GROUP BY r.id_receta;
 $$;
 
@@ -95,4 +96,17 @@ BEGIN
   RETURN jsonb_build_object('message','Consumo registrado e inventario descontado.');
 END; $$;
 
-GRANT EXECUTE ON FUNCTION api_capturador_ingredientes(), api_dashboard_inventario(), api_menu_diario(text), api_historial_compras(), api_analitica_precios(integer), api_confirmar_compras(jsonb,timestamptz), api_registrar_consumo(int,numeric,timestamptz) TO anon, authenticated;
+CREATE OR REPLACE FUNCTION api_registrar_consumo(p_id_receta int, p_porciones numeric, p_fecha_hora timestamptz, p_suplementos jsonb) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE suplemento jsonb; lote int; resultado jsonb;
+BEGIN
+  resultado:=api_registrar_consumo(p_id_receta,p_porciones,p_fecha_hora);
+  FOR suplemento IN SELECT value FROM jsonb_array_elements(COALESCE(p_suplementos,'[]'::jsonb)) LOOP
+    SELECT inv.id_inventario INTO lote FROM ingredientes i JOIN inventario inv USING(id_ingrediente) WHERE i.id_ingrediente=(suplemento::text)::int AND i.categoria='SUPLEMENTOS' AND inv.cantidad_disponible>=1 ORDER BY inv.fecha_ultima_actualizacion LIMIT 1 FOR UPDATE;
+    IF lote IS NULL THEN RAISE EXCEPTION 'Stock insuficiente de suplemento.' USING ERRCODE='22023'; END IF;
+    UPDATE inventario SET cantidad_disponible=cantidad_disponible-1,fecha_ultima_actualizacion=now() WHERE id_inventario=lote;
+  END LOOP;
+  RETURN resultado;
+END; $$;
+
+GRANT EXECUTE ON FUNCTION api_capturador_ingredientes(), api_dashboard_inventario(), api_menu_diario(text), api_historial_compras(), api_analitica_precios(integer), api_confirmar_compras(jsonb,timestamptz), api_registrar_consumo(int,numeric,timestamptz), api_registrar_consumo(int,numeric,timestamptz,jsonb) TO anon, authenticated;

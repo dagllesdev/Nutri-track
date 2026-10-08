@@ -36,7 +36,8 @@ app.post('/api/planificador', async (req, res, next) => {
     const { rows } = await pool.query(`SELECT r.id_receta,r.nombre,r.calorias_estimadas,COALESCE(json_agg(json_build_object('nombre',i.nombre,'cantidad',d.cantidad_requerida,'unidad_medida',i.unidad_medida,'dias_ingesta_abreviado',i.dias_ingesta_abreviado,'categoria',i.categoria,'stock_disponible',COALESCE(inv.disponible,0),'stock_despues',GREATEST(COALESCE(inv.disponible,0)-d.cantidad_requerida,0),'faltante',GREATEST(d.cantidad_requerida-COALESCE(inv.disponible,0),0)) ORDER BY i.nombre) FILTER (WHERE i.id_ingrediente IS NOT NULL),'[]') ingredientes
       FROM recetas r LEFT JOIN detalle_receta d USING(id_receta) LEFT JOIN ingredientes i USING(id_ingrediente) LEFT JOIN (SELECT id_ingrediente,SUM(cantidad_disponible) disponible FROM inventario GROUP BY id_ingrediente) inv USING(id_ingrediente) WHERE r.nombre=$1 GROUP BY r.id_receta`, [nombres[dia]]);
     if (!rows.length) return res.status(404).json({ error: 'No hay receta programada para este día.' });
-    res.json({ dia, ...rows[0] });
+    const supplements = await pool.query(`SELECT i.id_ingrediente,i.nombre,i.unidad_medida,COALESCE(SUM(inv.cantidad_disponible),0) stock_disponible FROM ingredientes i LEFT JOIN inventario inv USING(id_ingrediente) WHERE i.categoria='SUPLEMENTOS' GROUP BY i.id_ingrediente ORDER BY i.nombre`);
+    res.json({ dia, ...rows[0], suplementos: supplements.rows });
   } catch (error) { next(error); }
 });
 
@@ -90,7 +91,7 @@ app.post('/api/compras/confirmar', async (req, res, next) => {
 });
 
 app.post('/api/consumo/registrar', async (req, res, next) => {
-  const { id_receta, porciones_consumidas = 1, fecha_hora } = req.body ?? {};
+  const { id_receta, porciones_consumidas = 1, fecha_hora, suplementos = [] } = req.body ?? {};
   if (!Number.isInteger(Number(id_receta)) || !positive(porciones_consumidas)) return res.status(400).json({ error: 'Receta y porciones válidas son obligatorias.' });
   try {
     await transaction(async client => {
@@ -106,6 +107,11 @@ app.post('/api/consumo/registrar', async (req, res, next) => {
           if (remaining <= 0) break;
         }
         if (remaining > 0) throw Object.assign(new Error('Stock insuficiente para registrar el consumo.'), { status: 409 });
+      }
+      for (const suplementoId of suplementos) {
+        const supplement = await client.query(`SELECT inv.id_inventario FROM ingredientes i JOIN inventario inv USING(id_ingrediente) WHERE i.id_ingrediente=$1 AND i.categoria='SUPLEMENTOS' AND inv.cantidad_disponible>=1 ORDER BY inv.fecha_ultima_actualizacion ASC LIMIT 1 FOR UPDATE`, [suplementoId]);
+        if (!supplement.rowCount) throw Object.assign(new Error('Stock insuficiente de suplemento.'), { status: 409 });
+        await client.query('UPDATE inventario SET cantidad_disponible=cantidad_disponible-1,fecha_ultima_actualizacion=NOW() WHERE id_inventario=$1', [supplement.rows[0].id_inventario]);
       }
       await client.query('INSERT INTO registro_consumo(id_receta,fecha_hora,porciones_consumidas) VALUES($1,COALESCE($2::timestamptz,NOW()),$3)', [id_receta, fecha_hora || null, porciones_consumidas]);
       await client.query(`UPDATE inventario inv SET estado_stock=CASE WHEN resumen.cantidad<=i.stock_minimo_alerta THEN 'REABASTECER' ELSE 'OK' END
