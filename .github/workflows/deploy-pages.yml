@@ -1,0 +1,33 @@
+name: Deploy NutriTrack to GitHub Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build static PWA
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          mkdir dist
+          cp -R public/. dist/
+          node -e "const fs=require('fs');let s=fs.readFileSync('dist/config.js','utf8');if(process.env.SUPABASE_URL)s=s.replace(/supabaseUrl: '[^']*'/,'supabaseUrl: '+JSON.stringify(process.env.SUPABASE_URL));if(process.env.SUPABASE_ANON_KEY)s=s.replace(/supabaseAnonKey: '[^']*'/,'supabaseAnonKey: '+JSON.stringify(process.env.SUPABASE_ANON_KEY));fs.writeFileSync('dist/config.js',s)"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
