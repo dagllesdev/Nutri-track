@@ -37,7 +37,7 @@ INSERT INTO recetas (nombre,tipo_comida,calorias_estimadas) VALUES
 INSERT INTO detalle_receta (id_receta,id_ingrediente,cantidad_requerida)
 SELECT r.id_receta,i.id_ingrediente,d.cantidad
 FROM (VALUES
-  ('Sándwich Potenciado (Vie, Lun)','Huevos AA',3.00),('Sándwich Potenciado (Vie, Lun)','Aguacate Hass',80.00),('Sándwich Potenciado (Vie, Lun)','Queso Campesino',50.00),('Sándwich Potenciado (Vie, Lun)','Pan de Molde / Masa Madre',2.00),
+  ('Sándwich Potenciado (Vie, Lun)','Huevos AA',3.00),('Sándwich Potenciado (Vie, Lun)','Aguacate Hass',0.50),('Sándwich Potenciado (Vie, Lun)','Queso Campesino',50.00),('Sándwich Potenciado (Vie, Lun)','Pan de Molde / Masa Madre',2.00),
   ('Arepa Tradicional Proteica (Sab)','Huevos AA',3.00),('Arepa Tradicional Proteica (Sab)','Queso Campesino',50.00),('Arepa Tradicional Proteica (Sab)','Arepas de Maíz',1.50),('Arepa Tradicional Proteica (Sab)','Banano Urabá',1.00),
   ('Tazón de Yogur & Granola (Dom, Mier)','Yogur Griego Entero',200.00),('Tazón de Yogur & Granola (Dom, Mier)','Granola Artesanal',50.00),('Tazón de Yogur & Granola (Dom, Mier)','Banano Urabá',1.00),('Tazón de Yogur & Granola (Dom, Mier)','Mantequilla de Maní 100%',30.00),('Tazón de Yogur & Granola (Dom, Mier)','Frutos Secos / Maní',20.00),('Tazón de Yogur & Granola (Dom, Mier)','Miel de Abejas',15.00),
   ('Shake de Alta Densidad (Mar, Jue)','Leche Entera',300.00),('Shake de Alta Densidad (Mar, Jue)','Avena en Hojuelas',50.00),('Shake de Alta Densidad (Mar, Jue)','Banano Urabá',1.00),('Shake de Alta Densidad (Mar, Jue)','Mantequilla de Maní 100%',30.00)
