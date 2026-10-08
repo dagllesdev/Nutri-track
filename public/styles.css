@@ -17,3 +17,5 @@ main{inline-size:100%;max-inline-size:480px;margin-inline:auto;padding-inline:ma
 @media(max-width:480px){html,body,header,.tabs,main{width:100vw!important;max-width:100vw!important}main{max-inline-size:none}#confirm{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right))}}
 
 #purchase-form select.place{display:block;width:100%;height:45px;margin-top:4px;border:1px solid #bdcbbb;border-radius:9px;padding:9px 34px 9px 10px;font:inherit;background:#fff;color:#17251c}#purchase-form select.place:invalid{color:#718073}.place-custom{margin-top:7px!important}
+
+.add-lot{width:100%;min-height:42px;margin-top:4px;border:1px dashed #78a789;border-radius:9px;background:#eef7ed;color:#27653a;font:800 .8rem inherit}.lots{display:grid;gap:9px;margin-top:9px}.lot{display:grid;gap:8px;padding:10px;border:1px solid #dce9dc;border-radius:10px;background:#f8fbf7}.lot-heading{display:flex;align-items:center;justify-content:space-between;color:#315b3d;font-size:.8rem}.remove-lot{border:0;background:transparent;color:#aa4632;font:800 .75rem inherit;padding:4px}.lot .pair{grid-template-columns:1fr 1fr}.lot input{margin-top:4px}
