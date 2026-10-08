@@ -33,7 +33,7 @@ app.post('/api/planificador', async (req, res, next) => {
   const nombres = { Lunes: 'Sándwich Potenciado (Vie, Lun)', Martes: 'Shake de Alta Densidad (Mar, Jue)', Miércoles: 'Tazón de Yogur & Granola (Dom, Mier)', Jueves: 'Shake de Alta Densidad (Mar, Jue)', Viernes: 'Sándwich Potenciado (Vie, Lun)', Sábado: 'Arepa Tradicional Proteica (Sab)', Domingo: 'Tazón de Yogur & Granola (Dom, Mier)' };
   if (!nombres[dia]) return res.status(400).json({ error: 'Día inválido.' });
   try {
-    const { rows } = await pool.query(`SELECT r.id_receta,r.nombre,r.calorias_estimadas,COALESCE(json_agg(json_build_object('nombre',i.nombre,'cantidad',d.cantidad_requerida,'unidad_medida',i.unidad_medida) ORDER BY i.nombre) FILTER (WHERE i.id_ingrediente IS NOT NULL),'[]') ingredientes
+    const { rows } = await pool.query(`SELECT r.id_receta,r.nombre,r.calorias_estimadas,COALESCE(json_agg(json_build_object('nombre',i.nombre,'cantidad',d.cantidad_requerida,'unidad_medida',i.unidad_medida,'dias_ingesta_abreviado',i.dias_ingesta_abreviado,'categoria',i.categoria) ORDER BY i.nombre) FILTER (WHERE i.id_ingrediente IS NOT NULL),'[]') ingredientes
       FROM recetas r LEFT JOIN detalle_receta d USING(id_receta) LEFT JOIN ingredientes i USING(id_ingrediente) WHERE r.nombre=$1 GROUP BY r.id_receta`, [nombres[dia]]);
     if (!rows.length) return res.status(404).json({ error: 'No hay receta programada para este día.' });
     res.json({ dia, ...rows[0] });

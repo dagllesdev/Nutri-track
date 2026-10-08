@@ -32,7 +32,7 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
     WHEN 'Viernes' THEN 'Sándwich Potenciado (Vie, Lun)' WHEN 'Sábado' THEN 'Arepa Tradicional Proteica (Sab)'
     WHEN 'Domingo' THEN 'Tazón de Yogur & Granola (Dom, Mier)' END nombre)
   SELECT jsonb_build_object('dia',p_dia,'id_receta',r.id_receta,'nombre',r.nombre,'calorias_estimadas',r.calorias_estimadas,
-    'ingredientes',COALESCE(jsonb_agg(jsonb_build_object('nombre',i.nombre,'cantidad',d.cantidad_requerida,'unidad_medida',i.unidad_medida) ORDER BY i.nombre) FILTER(WHERE i.id_ingrediente IS NOT NULL),'[]'::jsonb))
+    'ingredientes',COALESCE(jsonb_agg(jsonb_build_object('nombre',i.nombre,'cantidad',d.cantidad_requerida,'unidad_medida',i.unidad_medida,'dias_ingesta_abreviado',i.dias_ingesta_abreviado,'categoria',i.categoria) ORDER BY i.nombre) FILTER(WHERE i.id_ingrediente IS NOT NULL),'[]'::jsonb))
   FROM programacion p JOIN recetas r ON r.nombre=p.nombre LEFT JOIN detalle_receta d USING(id_receta) LEFT JOIN ingredientes i USING(id_ingrediente) GROUP BY r.id_receta;
 $$;
 
